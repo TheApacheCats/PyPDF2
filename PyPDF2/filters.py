@@ -35,10 +35,15 @@ __author__ = "Mathieu Fenniak"
 __author_email__ = "biziqe@mathieu.fenniak.net"
 
 from utils import PdfReadError
-try:
+import sys
+
+if sys.version_info[0] < 3:
+  try:
     from cStringIO import StringIO
-except ImportError:
+  except ImportError:
     from StringIO import StringIO
+else:
+  from io import StringIO
 
 try:
     import zlib

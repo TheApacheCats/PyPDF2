@@ -304,7 +304,7 @@ def readHexStringFromStream(stream):
         txt += chr(int(x, base=16))
     return createStringObject(b_(txt))
 
-
+# TODO: this functions looks very badly written
 def readStringFromStream(stream):
     tok = stream.read(1)
     parens = 1
@@ -364,7 +364,7 @@ def readStringFromStream(stream):
                 # line break was escaped:
                 tok = b_('')
             else:
-                raise utils.PdfReadError("Unexpected escaped string")
+                raise utils.PdfReadError("Unexpected escaped string: " + str(tok) + " after: " + str(txt))
         txt += tok
     return createStringObject(txt)
 
@@ -452,10 +452,10 @@ class NameObject(str, PdfObject):
 
     def readFromStream(stream):
         debug = False
-        if debug: print stream.tell()
+        if debug: print(stream.tell())
         name = stream.read(1)
         if name != b_("/"):
-            raise utils.PdfReadError, "name read error"
+            raise utils.PdfReadError("name read error")
         while True:
             tok = stream.read(1)
             if not tok:
@@ -465,7 +465,7 @@ class NameObject(str, PdfObject):
                 stream.seek(-1, 1)
                 break
             name += tok
-        if debug: print name
+        if debug: print(name)
         return NameObject(name.decode('utf-8'))
     readFromStream = staticmethod(readFromStream)
 
@@ -490,7 +490,7 @@ class DictionaryObject(dict, PdfObject):
     def update(self, arr):
         # note, a ValueError halfway through copying values
         # will leave half the values in this dict.
-        for k, v in arr.iteritems():
+        for k, v in arr.items():    # Python3
             self.__setitem__(k, v)
 
     def raw_get(self, key):
@@ -552,8 +552,7 @@ class DictionaryObject(dict, PdfObject):
         debug = False
         tmp = stream.read(2)
         if tmp != b_("<<"):
-            raise utils.PdfReadError, \
-                ("Dictionary read error at byte %s: stream must begin with '<<'" % utils.hexStr(stream.tell()))
+            raise utils.PdfReadError("Dictionary read error at byte %s: stream must begin with '<<'" % utils.hexStr(stream.tell()))
         data = {}
         while True:
             tok = readNonWhitespace(stream)
@@ -563,7 +562,7 @@ class DictionaryObject(dict, PdfObject):
                 # stream has truncated prematurely
                 raise PdfStreamError("Stream has ended unexpectedly")
 
-            if debug: print "Tok:",tok
+            if debug: print("Tok:",tok)
             if tok == b_(">"):
                 stream.read(1)
                 break
@@ -572,9 +571,9 @@ class DictionaryObject(dict, PdfObject):
             tok = readNonWhitespace(stream)
             stream.seek(-1, 1)
             value = readObject(stream, pdf)
-            if data.has_key(key):
+            if key in data:
                 # multiple definitions of key not permitted
-                raise utils.PdfReadError, ("Multiple definitions in dictionary at byte %s for key %s" \
+                raise utils.PdfReadError("Multiple definitions in dictionary at byte %s for key %s" \
                                            % (utils.hexStr(stream.tell()), key))
             data[key] = value
         pos = stream.tell()
@@ -593,13 +592,13 @@ class DictionaryObject(dict, PdfObject):
             # this is a stream object, not a dictionary
             assert data.has_key("/Length")
             length = data["/Length"]
-            if debug: print data
+            if debug: print(data)
             if isinstance(length, IndirectObject):
                 t = stream.tell()
                 length = pdf.getObject(length)
                 stream.seek(t, 0)
             data["__streamdata__"] = stream.read(length)
-            if debug: print "here"
+            if debug: print("here")
             #if debug: print debugging.printAsHex(data["__streamdata__"])
             e = readNonWhitespace(stream)
             ndstream = stream.read(8)
@@ -619,8 +618,7 @@ class DictionaryObject(dict, PdfObject):
                 else:
                    # if debug: print "E", e, ndstream, debugging.toHex(end)
                     stream.seek(pos, 0)
-                    raise utils.PdfReadError, \
-                        ("Unable to find 'endstream' marker after stream at byte %s." % utils.hexStr(stream.tell()))
+                    raise utils.PdfReadError("Unable to find 'endstream' marker after stream at byte %s." % utils.hexStr(stream.tell()))
         else:
             stream.seek(pos, 0)
         if data.has_key("__streamdata__"):
@@ -681,9 +679,9 @@ class TreeObject(DictionaryObject):
         childObj = child.getObject()
         
         if not childObj.has_key(NameObject('/Parent')):
-            raise ValueError, "Removed child does not appear to be a tree item"
+            raise ValueError("Removed child does not appear to be a tree item")
         elif childObj[NameObject('/Parent')] != self:
-            raise ValueError, "Removed child is not a member of this tree"
+            raise ValueError("Removed child is not a member of this tree")
         
         found = False
         prevRef = None
@@ -738,7 +736,7 @@ class TreeObject(DictionaryObject):
                 cur = None
        
         if not found:
-            raise ValueError, "Removal couldn't find item in tree"
+            raise ValueError("Removal couldn't find item in tree")
        
         del childObj[NameObject('/Parent')]
         if childObj.has_key(NameObject('/Next')):
@@ -836,7 +834,7 @@ class EncodedStreamObject(StreamObject):
             return decoded._data
 
     def setData(self, data):
-        raise utils.PdfReadError, "Creating EncodedStreamObject is not currently supported"
+        raise utils.PdfReadError("Creating EncodedStreamObject is not currently supported")
 
 
 class RectangleObject(ArrayObject):
@@ -1078,7 +1076,7 @@ _pdfDocEncoding = (
 assert len(_pdfDocEncoding) == 256
 
 _pdfDocEncoding_rev = {}
-for i in xrange(256):
+for i in range(256):  # Python3
     char = _pdfDocEncoding[i]
     if char == u_("\u0000"):
         continue
