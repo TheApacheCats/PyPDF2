@@ -30,6 +30,7 @@
 # CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
+from __future__ import unicode_literals
 import string
 
 """
@@ -40,15 +41,23 @@ It may be a solid base for future PDF file work in Python.
 __author__ = "Mathieu Fenniak"
 __author_email__ = "biziqe@mathieu.fenniak.net"
 
-
+#
 import math
 import struct
 import sys
 from sys import version_info
-try:
+
+# compat
+
+
+# not
+if sys.version_info[0] < 3:
+  try:
     from cStringIO import StringIO
-except ImportError:
+  except ImportError:
     from StringIO import StringIO
+else:
+  from io import StringIO
 
 import filters
 import utils
@@ -67,9 +76,16 @@ else:
 
 warnings.formatwarning = utils._formatwarning
 
-import __builtin__
+if sys.version_info[0] < 3:
+  import __builtin__
 
-__builtin__.UserWarning
+  __builtin__.UserWarning
+else:
+  import builtins
+
+  builtins.UserWarning
+
+
 ##
 # This class supports writing PDF files out, given pages produced by another
 # class (typically {@link #PdfFileReader PdfFileReader}).
@@ -90,7 +106,7 @@ class PdfFileWriter(object):
         # info object
         info = DictionaryObject()
         info.update({
-                NameObject("/Producer"): createStringObject(u"Python PDF Library - http://pybrary.net/pyPdf/")
+                NameObject("/Producer"): createStringObject("Python PDF Library - http://pybrary.net/pyPdf/")
                 })
         self._info = self._addObject(info)
 
@@ -272,7 +288,7 @@ class PdfFileWriter(object):
                 externalReferenceMap[data.pdf][data.generation][data.idnum] = IndirectObject(objIndex + 1, 0, self)
 
         self.stack = []
-        if debug: print "ERM:",externalReferenceMap,"root:",self._root
+        if debug: print("ERM:",externalReferenceMap,"root:",self._root)
         self._sweepIndirectReferences(externalReferenceMap, self._root)
         del self.stack
 
@@ -333,7 +349,7 @@ class PdfFileWriter(object):
 
     def _sweepIndirectReferences(self, externMap, data):
         debug = False
-        if debug: print data,"TYPE",data.__class__.__name__
+        if debug: print(data,"TYPE",data.__class__.__name__)
         if isinstance(data, DictionaryObject):
             for key, value in data.items():
                 origvalue = value
@@ -642,7 +658,7 @@ class PdfFileReader(object):
         self.xrefIndex = 0
         if hasattr(stream, 'mode') and 'b' not in stream.mode:
             warnings.warn("PdfFileReader stream/file object is not in binary mode. It may not be read correctly.", utils.PdfReadWarning)
-        if type(stream) in (str, unicode):
+        if type(stream) in (str, bytes):
             fileobj = open(stream,'rb')
             stream = StringIO(fileobj.read())
             fileobj.close()
@@ -936,9 +952,9 @@ class PdfFileReader(object):
         # read the entire object stream into memory
         debug = False
         stmnum,idx = self.xref_objStm[indirectReference.idnum]
-        if debug: print "Here1: %s %s"%(stmnum, idx)
+        if debug: print("Here1: %s %s"%(stmnum, idx))
         objStm = IndirectObject(stmnum, 0, self).getObject()
-        if debug: print "Here2: objStm=%s.. stmnum=%s data=%s"%(objStm, stmnum, objStm.getData())
+        if debug: print("Here2: objStm=%s.. stmnum=%s data=%s"%(objStm, stmnum, objStm.getData()))
         # This is an xref to a stream, so its type better be a stream
         assert objStm['/Type'] == '/ObjStm'
         # /N is the number of indirect objects in the stream
@@ -962,11 +978,11 @@ class PdfFileReader(object):
                 streamData.seek(0,0)
                 lines = streamData.readlines()
                 for i in range(0,len(lines)):
-                    print lines[i]
+                    print(lines[i])
                 streamData.seek(pos,0)
             try:
                 obj = readObject(streamData, self)
-            except utils.PdfStreamError, e:
+            except utils.PdfStreamError as e:
                 # Stream object cannot be read. Normally, a critical error, but
                 # Adobe Reader doesn't complain, so continue (in strict mode?)
                 e = sys.exc_info()[1]
@@ -985,7 +1001,7 @@ class PdfFileReader(object):
         
     def getObject(self, indirectReference):
         debug = False
-        if debug: print "looking at:",indirectReference.idnum,indirectReference.generation
+        if debug: print("looking at:",indirectReference.idnum,indirectReference.generation)
         retval = self.cacheGetIndirectObject(indirectReference.generation, 
                                                 indirectReference.idnum)
         if retval != None:
@@ -996,7 +1012,7 @@ class PdfFileReader(object):
         elif indirectReference.generation in self.xref and \
                 indirectReference.idnum in self.xref[indirectReference.generation]:
             start = self.xref[indirectReference.generation][indirectReference.idnum]
-            if debug: print "  Uncompressed Object", indirectReference.idnum,indirectReference.generation, ":", start
+            if debug: print("  Uncompressed Object", indirectReference.idnum,indirectReference.generation, ":", start)
             self.stream.seek(start, 0)
             idnum, generation = self.readObjectHeader(self.stream)
             if idnum != indirectReference.idnum and self.xrefIndex:
@@ -1016,7 +1032,7 @@ class PdfFileReader(object):
             if not self._override_encryption and self.isEncrypted:
                 # if we don't have the encryption key:
                 if not hasattr(self, '_decryption_key'):
-                    raise Exception, "file has not been decrypted"
+                    raise Exception("file has not been decrypted")
                 # otherwise, decrypt here...
                 import struct
                 pack1 = struct.pack("<i", indirectReference.idnum)[:3]
@@ -1071,8 +1087,8 @@ class PdfFileReader(object):
     def cacheGetIndirectObject(self, generation, idnum):
         debug = False
         out = self.resolvedObjects.get((generation, idnum))
-        if debug and out: print "cache hit: %d %d"%(idnum, generation)
-        elif debug: print "cache miss: %d %d"%(idnum, generation)
+        if debug and out: print("cache hit: %d %d"%(idnum, generation))
+        elif debug: print("cache miss: %d %d"%(idnum, generation))
         return out
     
     def cacheIndirectObject(self, generation, idnum, obj):
@@ -1086,25 +1102,25 @@ class PdfFileReader(object):
 
     def read(self, stream):
         debug = False
-        if debug: print ">>read", stream
+        if debug: print(">>read", stream)
         # start at the end:
         stream.seek(-1, 2)
         if not stream.tell():
             raise utils.PdfReadError('Cannot read an empty file')
         line = b_('')
-        if debug: print "  line:",line
+        if debug: print("  line:",line)
         while not line:
             line = self.readNextEndLine(stream)
-        if debug: print "  line:",line
+        if debug: print("  line:",line)
         if line[:5] != b_("%%EOF"):
-            raise utils.PdfReadError, "EOF marker not found"
+            raise utils.PdfReadError("EOF marker not found")
 
         # find startxref entry - the location of the xref table
         line = self.readNextEndLine(stream)
         startxref = int(line)
         line = self.readNextEndLine(stream)
         if line[:9] != b_("startxref"):
-            raise utils.PdfReadError, "startxref not found"
+            raise utils.PdfReadError("startxref not found")
 
         # read all cross reference tables and their trailers
         self.xref = {}
@@ -1118,7 +1134,7 @@ class PdfFileReader(object):
                 # standard cross-reference table
                 ref = stream.read(4)
                 if ref[:3] != b_("ref"):
-                    raise utils.PdfReadError, "xref table read error"
+                    raise utils.PdfReadError("xref table read error")
                 readNonWhitespace(stream)
                 stream.seek(-1, 1)
                 firsttime = True; # check if the first time looking at the xref table
@@ -1202,7 +1218,7 @@ class PdfFileReader(object):
                 # Index pairs specify the subsections in the dictionary. If 
                 # none create one subsection that spans everything.
                 idx_pairs = xrefstream.get("/Index", [0, xrefstream.get("/Size")])
-                if debug: print "read idx_pairs=%s"%list(self._pairs(idx_pairs))
+                if debug: print("read idx_pairs=%s"%list(self._pairs(idx_pairs)))
                 entrySizes = xrefstream.get("/W")
                 assert len(entrySizes) >= 3
                 if self.strict and len(entrySizes) > 3:
@@ -1246,16 +1262,16 @@ class PdfFileReader(object):
                                 self.xref[generation] = {}
                             if not used_before(num, generation):
                                 self.xref[generation][num] = byte_offset
-                                if debug: print "XREF Uncompressed: %s %s"%(
-                                                num, generation)
+                                if debug: print ("XREF Uncompressed: %s %s"%(
+                                                num, generation))
                         elif xref_type == 2:
                             # compressed objects
                             objstr_num = getEntry(1)
                             obstr_idx = getEntry(2)
                             generation = 0 # PDF spec table 18, generation is 0
                             if not used_before(num, generation):
-                                if debug: print "XREF Compressed: %s %s %s"%(
-                                        num, objstr_num, obstr_idx)
+                                if debug: print("XREF Compressed: %s %s %s"%(
+                                        num, objstr_num, obstr_idx))
                                 self.xref_objStm[num] = (objstr_num, obstr_idx)
                         elif self.strict:
                             raise utils.PdfReadError("Unknown xref type: %s"%
@@ -1311,18 +1327,18 @@ class PdfFileReader(object):
 
     def readNextEndLine(self, stream):
         debug = False
-        if debug: print ">>readNextEndLine"
+        if debug: print(">>readNextEndLine")
         line = b_("")
         while True:
             x = stream.read(1)
-            if debug: print "  x:",x,"%x"%ord(x)
+            if debug: print("  x:",x,"%x"%ord(x))
             stream.seek(-2, 1)
             if x == b_('\n') or x == b_('\r'): ## \n = LF; \r = CR
                 crlf = False
                 while x == b_('\n') or x == b_('\r'):
                     if debug:
-                        if ord(x) == 0x0D: print "  x is CR 0D"
-                        elif ord(x) == 0x0A: print "  x is LF 0A"
+                        if ord(x) == 0x0D: print("  x is CR 0D")
+                        elif ord(x) == 0x0A: print("  x is LF 0A")
                     x = stream.read(1)
                     if x == b_('\n') or x == b_('\r'): # account for CR+LF
                         stream.seek(-1, 1)
@@ -1331,10 +1347,10 @@ class PdfFileReader(object):
                 stream.seek(2 if crlf else 1, 1) #if using CR+LF, go back 2 bytes, else 1
                 break
             else:
-                if debug: print "  x is neither"
+                if debug: print("  x is neither")
                 line = x + line
-                if debug: print "  RNEL line:",line
-        if debug: print "leaving RNEL"
+                if debug: print("  RNEL line:",line)
+        if debug: print("leaving RNEL")
         return line
 
     ##
@@ -1365,9 +1381,9 @@ class PdfFileReader(object):
     def _decrypt(self, password):
         encrypt = self.trailer['/Encrypt'].getObject()
         if encrypt['/Filter'] != '/Standard':
-            raise NotImplementedError, "only Standard PDF encryption handler is available"
+            raise NotImplementedError("only Standard PDF encryption handler is available")
         if not (encrypt['/V'] in (1, 2)):
-            raise NotImplementedError, "only algorithm code 1 and 2 are supported"
+            raise NotImplementedError("only algorithm code 1 and 2 are supported")
         user_password, key = self._authenticateUserPassword(password)
         if user_password:
             self._decryption_key = key
@@ -1897,7 +1913,7 @@ class PageObject(DictionaryObject):
     # be overhauled to provide more ordered text in the future.
     # @return a unicode string object
     def extractText(self):
-        text = u""
+        text = u("")
         content = self["/Contents"].getObject()
         if not isinstance(content, ContentStream):
             content = ContentStream(content, self.pdf)
